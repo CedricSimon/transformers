@@ -331,6 +331,9 @@ class MistralFlashAttention2(MistralAttention):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+
+        logger.info(f"Sliding window size from config: {getattr(self.config, 'sliding_window', 'Not set')}")
+
         # TODO: Should be removed once Flash Attention for RoCm is bumped to 2.1.
         # flash_attn<2.1 generates top-left aligned causal mask, while what is needed here is bottom-right alignement, that was made default for flash_attn>=2.1. This attribute is used to handle this difference. Reference: https://github.com/Dao-AILab/flash-attention/releases/tag/v2.1.0.
         # Beware that with flash_attn<2.1, using q_seqlen != k_seqlen (except for the case q_seqlen == 1) produces a wrong mask (top-left).
@@ -384,6 +387,9 @@ class MistralFlashAttention2(MistralAttention):
             and getattr(self.config, "sliding_window", None) is not None
             and kv_seq_len > self.config.sliding_window
         )
+
+        logger.info(f"Using sliding windows: {use_sliding_windows}") # debug logging
+
 
         if not _flash_supports_window_size:
             logger.warning_once(
@@ -453,6 +459,12 @@ class MistralFlashAttention2(MistralAttention):
         key_states = key_states.transpose(1, 2)
         value_states = value_states.transpose(1, 2)
 
+        logger.info(f"Query states size: {query_states.size()}")
+        logger.info(f"Key states size: {key_states.size()}")
+        logger.info(f"Value states size: {value_states.size()}")
+        logger.info(f"Attention mask size: {attention_mask.size() if attention_mask is not None else 'None'}")
+
+
         attn_output = self._flash_attention_forward(
             query_states,
             key_states,
@@ -503,6 +515,9 @@ class MistralFlashAttention2(MistralAttention):
             use_sliding_windows (`bool`, *optional*):
                 Whether to activate sliding window attention.
         """
+        logger.info(f"Sliding window used in flash attention forward: {use_sliding_windows}")
+
+
         if not self._flash_attn_uses_top_left_mask:
             causal = self.is_causal
         else:
@@ -549,7 +564,12 @@ class MistralFlashAttention2(MistralAttention):
 
             attn_output = pad_input(attn_output_unpad, indices_q, batch_size, query_length)
         else:
+
             if not use_sliding_windows:
+                logger.info(f"In _flash_attention_forward method, use_sliding_windows False (calling flash_attn_func without window)")
+                logger.info(f"Adjusted query states size: {query_states.size()}")
+                logger.info(f"Adjusted key states size: {key_states.size()}")
+                logger.info(f"Adjusted value states size: {value_states.size()}")
                 attn_output = flash_attn_func(
                     query_states,
                     key_states,
@@ -559,6 +579,10 @@ class MistralFlashAttention2(MistralAttention):
                     causal=causal,
                 )
             else:
+                logger.info(f"In _flash_attention_forward method, use_sliding_windows is True (calling flash_attn_func with window)")
+                logger.info(f"Adjusted query states size: {query_states.size()}")
+                logger.info(f"Adjusted key states size: {key_states.size()}")
+                logger.info(f"Adjusted value states size: {value_states.size()}")
                 attn_output = flash_attn_func(
                     query_states,
                     key_states,
