@@ -580,6 +580,7 @@ class MistralFlashAttention2(MistralAttention):
                 )
             else:
                 logger.info(f"In _flash_attention_forward method, use_sliding_windows is True (calling flash_attn_func with window)")
+                logger.info(f"Window size flash_attn_func is being called with: {self.config.sliding_window}")
                 logger.info(f"Adjusted query states size: {query_states.size()}")
                 logger.info(f"Adjusted key states size: {key_states.size()}")
                 logger.info(f"Adjusted value states size: {value_states.size()}")
