@@ -526,6 +526,7 @@ class MistralFlashAttention2(MistralAttention):
 
         # Contains at least one padding token in the sequence
         if attention_mask is not None:
+            logger.info(f"attention_mask is not None, therefore flash_attt_varlen_func is being used")
             batch_size = query_states.shape[0]
             query_states, key_states, value_states, indices_q, cu_seq_lens, max_seq_lens = self._upad_input(
                 query_states, key_states, value_states, attention_mask, query_length
